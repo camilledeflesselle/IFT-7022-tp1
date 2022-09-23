@@ -13,8 +13,12 @@ pattern_digit = "[\d]+((,|\/)[\d]+)?"
 pattern_unit_abrev = "m|g|k|po|lb|l|L|oz"
 pattern_unit_spoon = "(c\.|cuillère)s?\sà\s[A-zÀ-ü]+\.?"
 pattern_unit_words = "(rôti\sde|tasse|pincée|gousses|Bouquet|Rondelle|enveloppe|tranche)s?"
-pattern_quantity = "(\(?" + pattern_digit + "\s" +"(" +pattern_unit_spoon + "|" + pattern_unit_words + "|" + pattern_unit_abrev +")" + "(\.|é|\b)\)?)"
+pattern_quantity1 = "(\(?" + pattern_digit + "\s" +"(" +pattern_unit_spoon + "|" + pattern_unit_words + "|" + pattern_unit_abrev +")" + "(\.|é|\b)\)?)"
 pattern_quantity = r"((\s\()?[\d]+((,|\/)[\d]+)?(\s(c\.|cuillère)s?\sà\s\.?[A-zÀ-ÿ-é]+\.?|\s((rôti\sde|tasse|Bouquet|Rondelle|pincée|gousse|enveloppe|tranche)s?|m|g|k|po|lb|l|L|oz)+\b)?\)?)+"
+pattern_remove_first_space = "^\s"
+pattern_complement = r"\sen\b(\s|[\w])+"
+pattern_remove_after_comma = r",.*"
+
 
 def load_ingredients(filename):
     with open(filename, 'r', encoding='utf-8') as f:
@@ -46,16 +50,17 @@ def get_ingredients(text):
     x = re.search(pattern_quantity, text)
     if x :
         ingredient = re.sub(pattern_quantity, "", text)
-        # quantity = ' '.join(x.groups())
+        ingredient = re.sub(r"^\sd(e|'|’)", "", ingredient)
+        ingredient = re.sub(pattern_remove_after_comma, "", ingredient)
+        ingredient = re.sub(pattern_remove_first_space, "", ingredient)
+        ingredient = re.sub(pattern_complement, "", ingredient)
+        
         quantity = x.group(0)
 
     else:
         ingredient = text
         quantity = ""
     return quantity, ingredient
-
-
-
 
 
 
@@ -66,11 +71,17 @@ if __name__ == '__main__':
     ingredients, quantities = get_solutions(solutions_fn)
     print("\nExtractions fausses :")
     print("Result / Truth")
-    errors = []
+    errors_quantities = []
+    errors_ingredients = []
     for i in range(len(ingredients)):
         quantity, ingredient = get_ingredients(all_items[i])
-        result = "\t{}\t QUANTITE: {}\t INGREDIENT: {}".format(item, quantity, ingredient)
-        if quantity != quantities[i] : 
-            errors.append(result)
-            print(quantity, "/", quantities[i])
-    print("Percentage of errors : {}%".format(len(errors)/len(solutions)*100))
+        result = "\t{}\t QUANTITE: {}\t INGREDIENT: {}".format(all_items[i], quantity, ingredient)
+        if quantity != quantities[i] :
+            errors_quantities.append(result)
+            #print(quantity, "/", quantities[i])
+        elif ingredient != ingredients[i] : 
+            errors_ingredients.append(result)
+            print(ingredient, "/", ingredients[i])
+    print("Percentage of errors for quantities : {}%".format(len(errors_quantities)/len(quantities)*100))
+    print("Percentage of errors for ingredients : {}%".format(len(errors_ingredients)/len(quantities)*100))
+
