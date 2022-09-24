@@ -1,9 +1,13 @@
 import json
-
+from nltk import word_tokenize, bigrams, trigrams
+from nltk.util import pad_sequence, ngrams 
+from nltk.lm.models import Laplace
+from nltk.lm import MLE
 
 proverbs_fn = "./data/proverbes.txt"
 test1_fn = "./data/test_proverbes.txt"
-
+BOS = '<BOS>'
+EOS = '<EOS>'
 
 def load_proverbs(filename):
     with open(filename, 'r', encoding='utf-8') as f:
@@ -16,7 +20,37 @@ def load_tests(filename):
         test_data = json.load(fp)
     return test_data
 
+class ModelNgram:
+    """
+    """
+    def __init__(self, text_list, **kwargs):
+        """
+        Initializer
+        """
+        self.text_list = text_list
 
+
+    def build_vocabulary(self):
+        all_unigrams = list()
+        for sentence in self.text_list:
+            print(sentence)
+            word_list = word_tokenize(sentence.lower())
+            all_unigrams = all_unigrams + word_list
+        voc = set(all_unigrams)
+        voc.add(BOS)
+        voc.add(EOS)
+        return list(voc)
+
+    def get_ngrams(self, n):
+        all_ngrams = list()
+        for sentence in self.text_list:
+            tokens = word_tokenize(sentence.lower())
+            padded_sent = list(pad_sequence(tokens, pad_left=True, left_pad_symbol=BOS, pad_right=True, right_pad_symbol=EOS, n=n))
+            all_ngrams = all_ngrams + list(ngrams(padded_sent, n=n))      
+        return all_ngrams
+
+
+		
 def train_models(filename):
     proverbs = load_proverbs(filename)
     """ Vous ajoutez à partir d'ici tout le code dont vous avez besoin
@@ -28,12 +62,19 @@ def train_models(filename):
         pour conserver les modèles de langue N-grammes après leur construction. 
         Merci de ne pas modifier les signatures (noms de fonctions et arguments) déjà présentes dans le fichier.
     """
+    models = dict()
+    model_init = ModelNgram(proverbs)
+    vocabulary = model_init.build_vocabulary()
+    # différents modèles
+    for n in range(1, 3):     
+        model = Laplace(n)
+        corpus_ngrams = model_init.get_ngrams(n)
+        model.fit([corpus_ngrams], vocabulary_text = vocabulary)
+        models[n] = model
+    return models
 
-    # Votre code à partir d'ici...
 
-
-
-def cloze_test(incomplete_proverb, choices, n=3, criteria="perplexity"):
+def cloze_test(incomplete_proverb, choices, models, n=3, criteria="perplexity"):
     """ Fonction qui complète un texte à trous (des mots masqués) en ajoutant le bon mot.
         En anglais, on nomme ce type de tâche un "cloze test".
 
@@ -43,9 +84,10 @@ def cloze_test(incomplete_proverb, choices, n=3, criteria="perplexity"):
         Le paramètre n désigne le modèle utilisé.
         1 - unigramme NLTK, 2 - bigramme NLTK, 3 - trigramme NLTK
     """
-
+    model = models
+    print(model.vocab)
     # Votre code à partir d'ici.Vous pouvez modifier comme bon vous semble.
-    logprob_value = -3.5
+    logprob_value = -2
     perplexity_value = 12
     result = "qui vivra verra"  # modifier
 
@@ -58,14 +100,17 @@ def cloze_test(incomplete_proverb, choices, n=3, criteria="perplexity"):
 
 if __name__ == '__main__':
     # Vous pouvez modifier cette section comme bon vous semble
-    proverbs = load_proverbs(proverbs_fn)
+    proverbs = load_proverbs(proverbs_fn)[0:30]
     print("\nNombre de proverbes pour entraîner les modèles : ", len(proverbs))
-    train_models(proverbs_fn)
+    # Entraînement des modèles
+    models = train_models(proverbs_fn)
 
-    test_proverbs = load_tests(test1_fn)
+    """
+    test_proverbs = load_tests(test1_fn)[0:5]
     print("\nNombre de tests du fichier {}: {}\n".format(test1_fn, len(test_proverbs)))
     print("Les résultats des tests sont:")
     for partial_proverb, options in test_proverbs.items():
-        solution, valeur = cloze_test(partial_proverb, options, n=3, criteria="logprob")
+        solution, valeur = cloze_test(partial_proverb, options, models, n=3, criteria="logprob")
         print("\n\tProverbe incomplet: {} , Options: {}".format(partial_proverb, options))
         print("\tSolution = {} , Valeur = {}".format(solution, valeur))
+    """
