@@ -1,4 +1,6 @@
 import json
+import re
+import operator
 from nltk import word_tokenize, bigrams, trigrams
 from nltk.util import pad_sequence, ngrams 
 from nltk.lm.models import Laplace
@@ -33,7 +35,6 @@ class ModelNgram:
     def build_vocabulary(self):
         all_unigrams = list()
         for sentence in self.text_list:
-            print(sentence)
             word_list = word_tokenize(sentence.lower())
             all_unigrams = all_unigrams + word_list
         voc = set(all_unigrams)
@@ -49,6 +50,12 @@ class ModelNgram:
             all_ngrams = all_ngrams + list(ngrams(padded_sent, n=n))      
         return all_ngrams
 
+    def get_model(self, n, vocabulary):
+        model = Laplace(n)
+        corpus_ngrams = self.get_ngrams(n)
+        model.fit([corpus_ngrams], vocabulary_text = vocabulary)
+        return model
+        
 
 		
 def train_models(filename):
@@ -66,12 +73,16 @@ def train_models(filename):
     model_init = ModelNgram(proverbs)
     vocabulary = model_init.build_vocabulary()
     # différents modèles
-    for n in range(1, 3):     
-        model = Laplace(n)
-        corpus_ngrams = model_init.get_ngrams(n)
-        model.fit([corpus_ngrams], vocabulary_text = vocabulary)
-        models[n] = model
+    for n in range(1, 4):  
+        models[n] = model_init.get_model(n, vocabulary)   
     return models
+
+def n_gram_proverb_test_with_option(incomplete_proverb, option, n):
+    tested_proverb = re.sub("\*{3}", option, incomplete_proverb)
+    tokens = word_tokenize(tested_proverb.lower())
+    padded_sent = list(pad_sequence(tokens, pad_left=True, left_pad_symbol=BOS, pad_right=True, right_pad_symbol=EOS, n=n))
+    n_gram_tested = list(ngrams(padded_sent, n=n))
+    return n_gram_tested
 
 
 def cloze_test(incomplete_proverb, choices, models, n=3, criteria="perplexity"):
@@ -84,33 +95,40 @@ def cloze_test(incomplete_proverb, choices, models, n=3, criteria="perplexity"):
         Le paramètre n désigne le modèle utilisé.
         1 - unigramme NLTK, 2 - bigramme NLTK, 3 - trigramme NLTK
     """
-    model = models
-    print(model.vocab)
-    # Votre code à partir d'ici.Vous pouvez modifier comme bon vous semble.
-    logprob_value = -2
-    perplexity_value = 12
-    result = "qui vivra verra"  # modifier
+    model = models[n]
 
+    d_perplexity = dict()
+    d_logscore = dict()
+    for option in choices :
+        n_gram_tested = n_gram_proverb_test_with_option(incomplete_proverb, option, n)
+        d_perplexity[option] = model.perplexity(n_gram_tested)
+        #d_logscore[option] = model.logscore(option, word_tokenize)
+        
     if criteria == "perplexity":
-        score = perplexity_value
+        result, score =  min(d_perplexity.items(), key=operator.itemgetter(1))
     else:
-        score = logprob_value
+        result, score = max(d_perplexity.items(), key=operator.itemgetter(1))
     return result, score
 
 
 if __name__ == '__main__':
     # Vous pouvez modifier cette section comme bon vous semble
-    proverbs = load_proverbs(proverbs_fn)[0:30]
+    proverbs = load_proverbs(proverbs_fn)
     print("\nNombre de proverbes pour entraîner les modèles : ", len(proverbs))
     # Entraînement des modèles
     models = train_models(proverbs_fn)
 
-    """
-    test_proverbs = load_tests(test1_fn)[0:5]
+    test_proverbs = load_tests(test1_fn)
     print("\nNombre de tests du fichier {}: {}\n".format(test1_fn, len(test_proverbs)))
     print("Les résultats des tests sont:")
-    for partial_proverb, options in test_proverbs.items():
-        solution, valeur = cloze_test(partial_proverb, options, models, n=3, criteria="logprob")
-        print("\n\tProverbe incomplet: {} , Options: {}".format(partial_proverb, options))
-        print("\tSolution = {} , Valeur = {}".format(solution, valeur))
-    """
+    for n in range(1, 4):
+        for criteria in ["perplexity"]:
+            #nb_error = 0
+            print("\n\n Résultats avec n = {} et le critère '{}' : ".format(n, criteria))
+            for partial_proverb, options in test_proverbs.items():
+                solution, valeur = cloze_test(partial_proverb, options, models, n, criteria=criteria)
+                print("\n\tProverbe incomplet: {} , Options: {}".format(partial_proverb, options))
+                print("\tSolution = {} , Valeur = {}".format(solution, valeur))
+                #if solution != valeur : nb_error+=1
+            #print("Nombre d'erreurs avec n = {} et le critère '{}' : {}".format(n, criteria, nb_error))
+   

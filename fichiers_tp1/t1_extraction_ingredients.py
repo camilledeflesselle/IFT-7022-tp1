@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import re
+import operator
 
 ingredients_fn = "./data/ingredients.txt"
 solutions_fn =  "./data/ingredients_solutions.txt"
