@@ -9,16 +9,19 @@ solutions_fn =  "./data/ingredients_solutions.txt"
 #
 # Vos regex ici...
 #
-pattern_digit = "[\d]+((,|\/)[\d]+)?"
-pattern_unit_abrev = "m|g|k|po|lb|l|L|oz"
-pattern_unit_spoon = "(c\.|cuillère)s?\sà\s[A-zÀ-ü]+\.?"
-pattern_unit_words = "(rôti\sde|tasse|pincée|gousses|Bouquet|Rondelle|enveloppe|tranche)s?"
-pattern_quantity1 = "(\(?" + pattern_digit + "\s" +"(" +pattern_unit_spoon + "|" + pattern_unit_words + "|" + pattern_unit_abrev +")" + "(\.|é|\b)\)?)"
-pattern_quantity = r"((\s\()?[\d]+((,|\/)[\d]+)?(\s(c\.|cuillère)s?\sà\s\.?[A-zÀ-ÿ-é]+\.?|\s((rôti\sde|tasse|Bouquet|Rondelle|pincée|gousse|enveloppe|tranche)s?|m|g|k|po|lb|l|L|oz)+\b)?\)?)+"
+pattern_digit = r"[\d]+((,|\/|\sà\s)[\d]+)?"
+pattern_unit_abrev = r"\b(o|c|m|l|k)+(l|L|b|z|g)\b|\bg\b"
+pattern_unit_spoon = r"(c\.|cuillère)s?\sà\s\.?[A-zÀ-ÿ-é]+\.?"
+pattern_unit_words_after_digit = r"(rôti\sde|tasse|pincée|gousse|Bouquet|Rondelle|enveloppe|tranche|botte|(bo.te?.\sde\s\S+))s?"
+pattern_unit_words_without_digit = r"(.uel\S+\s\S+)|(\b\w+\sdemi)|(\bou\s|au\sg.*)"
+#pattern_quantity = re.compile("((\s\()?%s(\s%s|\s(%s|%s)+)?\)?)+|%s" % (pattern_digit, pattern_unit_spoon, pattern_unit_abrev, pattern_unit_words_after_digit, pattern_unit_words_without_digit))
+pattern_quantity = re.compile('((\s\()?' +pattern_digit+ '(\s' +pattern_unit_spoon+ '|\s(' +pattern_unit_abrev+ '|' +pattern_unit_words_after_digit+ ')+)?\)?)+|' +pattern_unit_words_without_digit)
+#pattern_quantity = r"((\s\()?[\d]+((,|\/|\sà\s)[\d]+)?(\s(c\.|cuillère)s?\sà\s\.?[A-zÀ-ÿ-é]+\.?|\s(\b(o|c|m|l|k)+(l|L|b|z|g)\b|\bg\b|(rôti\sde|tasse|pincée|gousse|Bouquet|Rondelle|enveloppe|tranche|botte|(bo.te?.\sde\s\S+))s?)+)?\)?)+|(.uel\S+\s\S+)|(\b\w+\sdemi)|(\bou\s|au\sg.*)"
 pattern_remove_first_space = "^\s"
-pattern_complement = r"\sen\b(\s|[\w])+"
-pattern_remove_after_comma = r",.*"
-
+pattern_remove_d = "(^\sd(e|'|’))"
+pattern_complement = "\sen.*|\sr.pé|\spel\w+|\sém\w+|\scou.*|\shachées|\sbat.*|\stor.*|\sdan.*|\set\sd.*|\scis.*|\sd.en.*"
+pattern_remove_after_comma = ",.*"
+#re.compile("((\s\()?%s(\s%s|\s(%s|%s)+)?\)?)+|%s" % (pattern_digit, pattern_unit_spoon, pattern_unit_abrev, pattern_unit_words_after_digit, pattern_unit_words_without_digit))
 
 def load_ingredients(filename):
     with open(filename, 'r', encoding='utf-8') as f:
@@ -50,7 +53,7 @@ def get_ingredients(text):
     x = re.search(pattern_quantity, text)
     if x :
         ingredient = re.sub(pattern_quantity, "", text)
-        ingredient = re.sub(r"^\sd(e|'|’)", "", ingredient)
+        ingredient = re.sub(pattern_remove_d, "", ingredient)
         ingredient = re.sub(pattern_remove_after_comma, "", ingredient)
         ingredient = re.sub(pattern_remove_first_space, "", ingredient)
         ingredient = re.sub(pattern_complement, "", ingredient)
