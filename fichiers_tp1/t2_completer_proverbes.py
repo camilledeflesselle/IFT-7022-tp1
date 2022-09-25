@@ -1,10 +1,9 @@
 import json
 import re
 import operator
-from nltk import word_tokenize, bigrams, trigrams
+from nltk import word_tokenize
 from nltk.util import pad_sequence, ngrams 
 from nltk.lm.models import Laplace
-from nltk.lm import MLE
 
 proverbs_fn = "./data/proverbes.txt"
 test1_fn = "./data/test_proverbes.txt"
@@ -24,11 +23,10 @@ def load_tests(filename):
     return test_data
 
 class ModelNgram:
-    """
-    """
     def __init__(self, text_list, **kwargs):
         """
         Initializer
+        :param text_list: liste de textes utilisés pour construire le vocabulaire
         """
         self.text_list = text_list
 
@@ -44,6 +42,10 @@ class ModelNgram:
         return list(voc)
 
     def get_ngrams(self, n):
+        """
+        :param n: taille des n-grammes
+        :return: all_ngrams: les n-grammes construits
+        """
         all_ngrams = list()
         for sentence in self.text_list:
             tokens = word_tokenize(sentence.lower())
@@ -52,6 +54,11 @@ class ModelNgram:
         return all_ngrams
 
     def get_model(self, n, vocabulary):
+        """
+        :param n: taille des n-grammes
+        :param vocabulary: voabulaire utilisé
+        :return model: le modèle associé, avec un lissage des probabilités
+        """
         model = Laplace(n)
         corpus_ngrams = self.get_ngrams(n)
         model.fit([corpus_ngrams], vocabulary_text = vocabulary)
@@ -60,23 +67,24 @@ class ModelNgram:
 
 		
 def train_models(filename):
-    proverbs = load_proverbs(filename)
-    """ Vous ajoutez à partir d'ici tout le code dont vous avez besoin
-        pour construire les différents modèles N-grammes.
-        Voir les consignes de l'énoncé du travail pratique concernant les modèles à entraîner.
-
-        Vous pouvez ajouter au fichier les classes, fonctions/méthodes et variables que vous jugerez nécessaire.
-        Il faut au minimum prévoir une variable (par exemple un dictionnaire) 
-        pour conserver les modèles de langue N-grammes après leur construction. 
-        Merci de ne pas modifier les signatures (noms de fonctions et arguments) déjà présentes dans le fichier.
     """
+    Permet d'entraîner les différents modèles, enregistrés dans le dictionnaire 'models',
+    qui permet de conserver les modèles de langue N-grammes après leur construction. 
+    :param filename: nom du fichier où sont situés les proverbes
+    """
+    proverbs = load_proverbs(filename)
     model_init = ModelNgram(proverbs)
     vocabulary = model_init.build_vocabulary()
     # différents modèles
     for n in range(1, 4):  
         models[n] = model_init.get_model(n, vocabulary) 
 
-def n_gram_proverb_test_with_option(tested_proverb, n):
+def n_gram_proverb_test(tested_proverb, n):
+    """
+    :param tested_proverb: proverbe testé (utilisé pour le calcul de perplexité)
+    :param n: longueur des n-grammes
+    :return n_gram_tested: séquence de n-grammes associée au proverbe testé
+    """
     tokens = word_tokenize(tested_proverb.lower())
     if n > 1 : n_gram_tested = list(ngrams(tokens, n=n))
     else : n_gram_tested = tokens
@@ -84,14 +92,14 @@ def n_gram_proverb_test_with_option(tested_proverb, n):
 
 
 def cloze_test(incomplete_proverb, choices, n=3, criteria="perplexity"):
-    """ Fonction qui complète un texte à trous (des mots masqués) en ajoutant le bon mot.
-        En anglais, on nomme ce type de tâche un "cloze test".
-
-        Le paramètre criteria indique la mesure qu'on utilise pour choisir le mot le plus probable: "logprob" ou "perplexity".
-        La valeur retournée est l'estimation sur le proverbe complet (c.-à-d. toute la séquence de mots du proverbe).
-
-        Le paramètre n désigne le modèle utilisé.
-        1 - unigramme NLTK, 2 - bigramme NLTK, 3 - trigramme NLTK
+    """ 
+    Fonction qui complète un texte à trous (des mots masqués) en ajoutant le bon mot.
+    En anglais, on nomme ce type de tâche un "cloze test".
+    :param criteria: indique la mesure qu'on utilise pour choisir le mot le plus probable: "logprob" ou "perplexity".
+    :param n: le paramètre n désigne le modèle utilisé (1 - unigramme NLTK, 2 - bigramme NLTK, 3 - trigramme NLTK)
+    :return 
+            - result: proverbe complet estimé (c.-à-d. toute la séquence de mots du proverbe).
+            - score: le score (logprob ou perplexité) associé
     """
     model = models[n]
 
@@ -99,7 +107,7 @@ def cloze_test(incomplete_proverb, choices, n=3, criteria="perplexity"):
     d_logscore = dict()
     for option in choices :
         tested_proverb = re.sub("\*{3}", option, incomplete_proverb)
-        n_gram_tested = n_gram_proverb_test_with_option(tested_proverb, n)
+        n_gram_tested = n_gram_proverb_test(tested_proverb, n)
         d_perplexity[tested_proverb] = model.perplexity(n_gram_tested)
         n_gram_context = re.sub("\*{3}", "", incomplete_proverb).split()
         d_logscore[tested_proverb] = model.logscore(option, n_gram_context)

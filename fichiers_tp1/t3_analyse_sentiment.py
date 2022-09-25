@@ -17,8 +17,8 @@ reviews_dataset = {
     'test_neg_fn' : "./data/senti_test_negative.txt"
 }
 
-POSITIVE = 1
-NEGATIVE = 0
+POSITIVE = 'pos'
+NEGATIVE = 'neg'
 
 def load_reviews(filename):
     with open(filename, 'r') as fp:
@@ -26,8 +26,15 @@ def load_reviews(filename):
     return reviews_list
 
 def train_test_from_files(dataset):
-    train = []
-    test = []
+    """
+    :param dataset: un dictionnaire contenant le nom des 4 fichiers utilisées pour entraîner 
+                    et tester les classificateurs. Voir variable reviews_dataset.
+    :return: 
+            - X_train : les données d'entraînement
+            - X_test : les données test
+            - y_train : les labels associés à X_train
+            - y_test : les labels associés à X_test
+    """
     data = dict()
     for key, filename in dataset.items():
         var_name = re.sub("_fn", "", key)
@@ -41,6 +48,16 @@ def train_test_from_files(dataset):
     return X_train, X_test, y_train, y_test
 
 def evaluation(classifier, X, y_true, cross_val = False, i_val = 10):
+    """
+    :param classifier: le classifier évalué
+    :param X: stemmer utilisé pour réaliser le Stemming
+    :param cross_val: un booléen valant True si l'on souhaite effectuer 
+                      une validation croisée
+    :param ival: le nombre d'itérations pour la validation croisée
+    :return: 
+            - accuracy: le pourcentage de biens classés
+            - confusion_mat: la matrice de confusions (si cross_val égal à False)
+    """
     if cross_val :
         scores = cross_val_score(classifier, X, y_true, cv=i_val)
         return scores.mean()
@@ -51,6 +68,10 @@ def evaluation(classifier, X, y_true, cross_val = False, i_val = 10):
         return accuracy, confusion_mat
     
 def lemmatization(X):
+    """
+    :param X: une liste de reviews
+    :return: la liste de reviews normalisée avec la lemmatisation (spacy)
+    """
     analyzer_en = spacy.load("en_core_web_sm")  
     X_lemmatized = []
     for review in X:
@@ -62,6 +83,11 @@ def lemmatization(X):
     return X_lemmatized
 
 def stemming(X, stemmer):
+    """
+    :param X: une liste de reviews
+    :param stemmer: stemmer utilisé pour réaliser le Stemming
+    :return: la liste de reviews normalisée avec le Stemming de Porter (nltk)
+    """
     X_stemm = []
     for review in X:
         review_stemm = []
@@ -74,7 +100,8 @@ def stemming(X, stemmer):
 
 def train_and_test_classifier(dataset, model='NB', normalization='words'):
     """
-    :param dataset: un dictionnaire contenant le nom des 4 fichiers utilisées pour entraîner et tester les classificateurs. Voir variable reviews_dataset.
+    :param dataset: un dictionnaire contenant le nom des 4 fichiers utilisées pour entraîner 
+                    et tester les classificateurs. Voir variable reviews_dataset.
     :param model: le type de classificateur. NB = Naive Bayes, LR = Régression logistique.
     :param normalization: le prétraitement appliqué aux mots des critiques (reviews)
                  - 'word': les mots des textes sans normalization.
