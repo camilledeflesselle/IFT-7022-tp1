@@ -12,16 +12,12 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from sklearn.feature_extraction.text import CountVectorizer
 
-from nltk.lm.models import Laplace
-
 datafiles = "./data/names/*.txt"  # les fichiers pour construire vos modèles
 test_filename = './data/test_names.txt'  # le fichier contenant les données de test pour évaluer vos modèles
 
 names_by_origin = {}  # un dictionnaire qui contient une liste de noms pour chaque langue d'origine
 all_origins = []  # la liste des 18 langues d'origines de noms 
 models = dict()
-BOS = '<BOS>'
-EOS = '<EOS>'
 X_train, y_train = list(), list()
 Vectorizers = dict()
 
@@ -76,15 +72,6 @@ def load_test_names(filename):
 #---------------------------------------------------------------------------
 # Fonctions à développer pour ce travail - Ne pas modifier les signatures et les valeurs de retour
 
-def create_vectorizer(X_train, n=2):
-    if n != 'multi' : 
-        n = int(n)
-        character_ngrams_vectorizer = CountVectorizer(analyzer='char', ngram_range=(n, n))  
-    else : 
-        character_ngrams_vectorizer = CountVectorizer(analyzer='char', ngram_range=(1, 4))     
-    character_ngrams_vectorizer.fit(X_train) 
-    Vectorizers[str(n)+"-gram"] = character_ngrams_vectorizer
-
 def data_and_labels(names_with_origin):
     # Retourne la langue d'origine prédite pour le nom.
     #   - name = le nom qu'on veut classifier
@@ -98,20 +85,32 @@ def data_and_labels(names_with_origin):
         y = y + [origin]*len(names)
     return X, y
 
-def train_classifiers():
-    load_names()
-    X_train, y_train = data_and_labels(names_by_origin)
-    # Vous ajoutez à partir d'ici tout le code dont vous avez besoin
-    # pour construire les différentes versions de classificateurs de langues d'origines.
-    # Voir les consignes de l'énoncé du travail pratique pour déterminer les différents modèles à entraîner.
+
+def create_vectorizer(X_train, n=2):
+    # Permet de créer un objet CountVectorizer, enregistré dans le dictionnaire Vectorizers
+    # Permet de convertir les textes sous forme de sac de caractères
+    #   - X_train = un vecteur contenant tous les noms d'entraînement pour créer les attributs
+    #   - n désigne la longueur des N-grammes de caractères. Choix possible = 1, 2, 3, 'multi'
     #
+    if n != 'multi' : 
+        n = int(n)
+        character_ngrams_vectorizer = CountVectorizer(analyzer='char', ngram_range=(n, n))  
+    else : 
+        character_ngrams_vectorizer = CountVectorizer(analyzer='char', ngram_range=(1, 4))     
+    character_ngrams_vectorizer.fit(X_train) 
+    Vectorizers[str(n)+"-gram"] = character_ngrams_vectorizer
+
+
+def train_classifiers():
+    # Permet d'entraîner tous les classifieurs, pour les différents modèles et les différentes valeurs de n
+    # Les classifieurs sont enregistrés dans le dictionnaire modèles
     # On suppose que les données d'entraînement ont été lues (load_names) et sont disponibles (names_by_origin).
     #
-    # Vous pouvez ajouter au fichier toutes les fonctions que vous jugerez nécessaire.
-    # Assurez-vous de sauvegarder vos modèles pour y accéder avec la fonction get_classifier().
-    # On veut éviter de les reconstruire à chaque appel de cette fonction.
-    # Merci de ne pas modifier les signatures (noms de fonctions et arguments) déjà présentes dans le fichier.
-    #
+    # lecture des données d'entraînement et sont disponibles (names_by_origin).
+    load_names()
+    # données d'entraînement et classes associées
+    X_train, y_train = data_and_labels(names_by_origin)
+    
     for n in [str(i) for i in range(1,4)] + ['multi']:
         classifiers = dict()
         create_vectorizer(X_train, n)
@@ -119,15 +118,13 @@ def train_classifiers():
         classifiers['NB'] = MultinomialNB().fit(X_train_vectorized, y_train)
         classifiers['LR'] = LogisticRegression(max_iter=1000).fit(X_train_vectorized, y_train)
         models[str(n)+"-gram"] = classifiers
-    models["multi-gram"] = classifiers
      
     
 def get_classifier(type, n=3):
     # Retourne le classificateur correspondant. On peut appeler cette fonction
     # après que les modèles ont été entraînés avec la fonction train_classifiers
-    #
-    # type = 'NB' pour naive bayes ou 'LR' pour régression logistique
-    # n = 1,2,3 ou multi
+    #   - type = 'NB' pour naive bayes ou 'LR' pour régression logistique
+    #   - n = 1,2,3 ou multi
     #
     key = str(n)+"-gram"
     if type == 'NB':
@@ -160,7 +157,6 @@ def evaluate_classifier(test_fn, type, n=3):
 
 
 if __name__ == '__main__':
-    # Vous pouvez modifier cette section comme bon vous semble
     load_names()
     print("Les {} langues d'origine sont: \n{}".format(len(all_origins), all_origins))
     chinese_names = names_by_origin["Chinese"]
