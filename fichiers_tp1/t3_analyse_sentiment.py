@@ -4,6 +4,7 @@ import re
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import cross_val_score
 from nltk.stem.snowball import PorterStemmer
 from nltk import word_tokenize
@@ -16,8 +17,8 @@ reviews_dataset = {
     'test_neg_fn' : "./data/senti_test_negative.txt"
 }
 
-POSITIVE = "pos"
-NEGATIVE = "neg"
+POSITIVE = 1
+NEGATIVE = 0
 
 def load_reviews(filename):
     with open(filename, 'r') as fp:
@@ -39,11 +40,15 @@ def train_test_from_files(dataset):
     assert(len(X_test) == len(y_test))
     return X_train, X_test, y_train, y_test
 
-def evaluation(classifier, X, y_true):
-    y_pred = classifier.predict(X)
-    accuracy = accuracy_score(y_true, y_pred)
-    confusion_mat = confusion_matrix(y_true, y_pred)
-    return accuracy, confusion_mat
+def evaluation(classifier, X, y_true, cross_val = False, i_val = 10):
+    if cross_val :
+        scores = cross_val_score(classifier, X, y_true, cv=i_val)
+        return scores.mean()
+    else : 
+        y_pred = classifier.predict(X)
+        accuracy = accuracy_score(y_true, y_pred)
+        confusion_mat = confusion_matrix(y_true, y_pred)
+        return accuracy, confusion_mat
     
 def lemmatization(X):
     analyzer_en = spacy.load("en_core_web_sm")  
@@ -109,10 +114,10 @@ def train_and_test_classifier(dataset, model='NB', normalization='words'):
 
     if model == 'LR':
         # On construit un classificateur Regression logistique sur les données d'entraînement
-        classifier = MultinomialNB()
+        classifier = LogisticRegression(max_iter=1000)
         classifier.fit(X_train_vectorized, y_train)
     
-    accuracy_train, _ = evaluation(classifier, X_train_vectorized, y_train)
+    accuracy_train = evaluation(classifier, X_train_vectorized, y_train, cross_val = True, i_val = 10)
     accuracy_test, confusion_matrix = evaluation(classifier, X_test_vectorized, y_test)
 
     # Les résultats à retourner 
@@ -134,7 +139,7 @@ if __name__ == '__main__':
         print("\t{} : {}".format(split, len(partitions[split])))
 
     # Entraînement et évaluation des modèles
-    results = train_and_test_classifier(reviews_dataset, model='NB', normalization='lemma')
+    results = train_and_test_classifier(reviews_dataset, model='LR', normalization='words')
     print("Accuracy - entraînement: ", results['accuracy_train'])
     print("Accuracy - test: ", results['accuracy_test'])
     print("Matrice de confusion: ", results['confusion_matrix'])
