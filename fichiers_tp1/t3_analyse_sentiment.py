@@ -5,8 +5,9 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.model_selection import cross_val_score
-from nltk.stem import WordNetLemmatizer
+from nltk.stem.snowball import PorterStemmer
 from nltk import word_tokenize
+import spacy
 
 reviews_dataset = {
     'train_pos_fn' : "./data/senti_train_positive.txt",
@@ -45,25 +46,23 @@ def evaluation(classifier, X, y_true):
     return accuracy, confusion_mat
     
 def lemmatization(X):
-    lemmatizer = WordNetLemmatizer()
+    analyzer_en = spacy.load("en_core_web_sm")  
     X_lemmatized = []
     for review in X:
         review_lemmatized = []
-        tokens = word_tokenize(review)
-        for token in tokens:
-            lemma = lemmatizer.lemmatize(token)
-            review_lemmatized.append(lemma)
+        doc = analyzer_en(review)
+        for token in doc:
+            review_lemmatized.append(token.lemma_)
         X_lemmatized.append(' '.join(review_lemmatized))
     return X_lemmatized
 
-def stemming(X):
-    lemmatizer = WordNetLemmatizer()
+def stemming(X, stemmer):
     X_stemm = []
     for review in X:
         review_stemm = []
         tokens = word_tokenize(review)
         for token in tokens:
-            stemm = lemmatizer.lemmatize(token)
+            stemm = stemmer.stem(token)
             review_stemm.append(stemm)
         X_stemm.append(' '.join(review_stemm))
     return X_stemm
@@ -90,8 +89,9 @@ def train_and_test_classifier(dataset, model='NB', normalization='words'):
         X_test = lemmatization(X_test)
         
     if normalization == 'stem':
-        X_train = stemming(X_train)
-        X_test = stemming(X_test)
+        porter_stemmer = PorterStemmer()
+        X_train = stemming(X_train, porter_stemmer)
+        X_test = stemming(X_test, porter_stemmer)
 
     # Le vectorizer permet de convertir les textes en sac de mots (vecteurs de compte)
     vectorizer = CountVectorizer(lowercase=True)
