@@ -3,17 +3,27 @@ from __future__ import unicode_literals
 import glob
 import os
 import string
+from tkinter import WORD
 import unicodedata
 import json
 
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+from sklearn.feature_extraction.text import CountVectorizer
+
+from nltk.lm.models import Laplace
 
 datafiles = "./data/names/*.txt"  # les fichiers pour construire vos modèles
 test_filename = './data/test_names.txt'  # le fichier contenant les données de test pour évaluer vos modèles
 
 names_by_origin = {}  # un dictionnaire qui contient une liste de noms pour chaque langue d'origine
 all_origins = []  # la liste des 18 langues d'origines de noms 
+models = dict()
+BOS = '<BOS>'
+EOS = '<EOS>'
+X_train, y_train = list(), list()
+Vectorizers = dict()
 
 # Fonctions utilitaires pour lire les données d'entraînement et de test - NE PAS MODIFIER
 
@@ -66,8 +76,31 @@ def load_test_names(filename):
 #---------------------------------------------------------------------------
 # Fonctions à développer pour ce travail - Ne pas modifier les signatures et les valeurs de retour
 
+def create_vectorizer(X_train, n=2):
+    if n != 'multi' : 
+        n = int(n)
+        character_ngrams_vectorizer = CountVectorizer(analyzer='char', ngram_range=(n, n))  
+    else : 
+        character_ngrams_vectorizer = CountVectorizer(analyzer='char', ngram_range=(1, 4))     
+    character_ngrams_vectorizer.fit(X_train) 
+    Vectorizers[str(n)+"-gram"] = character_ngrams_vectorizer
+
+def data_and_labels(names_with_origin):
+    # Retourne la langue d'origine prédite pour le nom.
+    #   - name = le nom qu'on veut classifier
+    #   - type = 'NB' pour naive bayes ou 'LR' pour régression logistique
+    #   - n désigne la longueur des N-grammes de caractères. Choix possible = 1, 2, 3, 'multi'
+    #
+    X = list()  # data
+    y = list()  # labels
+    for origin, names in names_with_origin.items():
+        X = X + names
+        y = y + [origin]*len(names)
+    return X, y
+
 def train_classifiers():
     load_names()
+    X_train, y_train = data_and_labels(names_by_origin)
     # Vous ajoutez à partir d'ici tout le code dont vous avez besoin
     # pour construire les différentes versions de classificateurs de langues d'origines.
     # Voir les consignes de l'énoncé du travail pratique pour déterminer les différents modèles à entraîner.
@@ -79,9 +112,15 @@ def train_classifiers():
     # On veut éviter de les reconstruire à chaque appel de cette fonction.
     # Merci de ne pas modifier les signatures (noms de fonctions et arguments) déjà présentes dans le fichier.
     #
-    # Votre code à partir d'ici...
-    #
-    
+    for n in [str(i) for i in range(1,4)] + ['multi']:
+        classifiers = dict()
+        create_vectorizer(X_train, n)
+        X_train_vectorized = Vectorizers[str(n)+"-gram"].transform(X_train)  
+        classifiers['NB'] = MultinomialNB().fit(X_train_vectorized, y_train)
+        classifiers['LR'] = LogisticRegression(max_iter=1000).fit(X_train_vectorized, y_train)
+        models[str(n)+"-gram"] = classifiers
+    models["multi-gram"] = classifiers
+     
     
 def get_classifier(type, n=3):
     # Retourne le classificateur correspondant. On peut appeler cette fonction
@@ -90,14 +129,14 @@ def get_classifier(type, n=3):
     # type = 'NB' pour naive bayes ou 'LR' pour régression logistique
     # n = 1,2,3 ou multi
     #
-
-    # À modifier
+    key = str(n)+"-gram"
     if type == 'NB':
-        return MultinomialNB()
+        classifier = models[key]['NB']
     elif type == 'LR':
-        return LogisticRegression()
+        classifier = models[key]['LR']
     else:
         raise ValueError("Unknown model type")
+    return classifier
     
     
 def origin(name, type, n=3):
@@ -106,20 +145,17 @@ def origin(name, type, n=3):
     #   - type = 'NB' pour naive bayes ou 'LR' pour régression logistique
     #   - n désigne la longueur des N-grammes de caractères. Choix possible = 1, 2, 3, 'multi'
     #
-    # Votre code à partir d'ici...
-    # À compléter...
-    #
-    name_origin = "French"  # À modifier
+    key = str(n)+"-gram"
+    name = Vectorizers[key].transform([name])  
+    name_origin = models[key][type].predict(name)
     return name_origin 
     
     
 def evaluate_classifier(test_fn, type, n=3):
     test_data = load_test_names(test_fn)
-
-    # Insérer ici votre code pour la classification des noms.
-    # Votre code...
-
-    test_accuracy = 0.8  # A modifier
+    X_test, y_true = data_and_labels(test_data)
+    y_pred = [origin(name, type, n) for name in X_test]
+    test_accuracy = accuracy_score(y_true, y_pred)
     return test_accuracy
 
 
@@ -132,19 +168,20 @@ if __name__ == '__main__':
 
     train_classifiers()
 
-    model = 'NB'
-    ngram_length = 'multi'
+    for model in ['NB', 'LR']:
 
-    classifier = get_classifier(model, n=ngram_length)
-    print("\nType de classificateur: ", classifier)
+        for ngram_length in [str(i) for i in range(1,4)]  + ['multi']:
+            if ngram_length != 'multi' : ngram_length = int(ngram_length)
+            classifier = get_classifier(model, n=ngram_length)
+            #print("\nType de classificateur: ", classifier)
 
-    some_name = "Lamontagne"
-    some_origin = origin(some_name, model, n=ngram_length)
-    print("\nLangue d'origine de {}: {}".format(some_name, some_origin))
+            #some_name = "Lamontagne"
+            #some_origin = origin(some_name, model, n=ngram_length)
+            #print("\nLangue d'origine de {}: {}".format(some_name, some_origin))
 
-    test_names = load_test_names(test_filename)
-    print("\nLes données pour tester vos modèles sont:")
-    for org, name_list in test_names.items():
-        print("\t{} : {}".format(org, name_list))
-    evaluation = evaluate_classifier(test_filename, model, n=ngram_length)
-    print("\nAccuracy = {}".format(evaluation))
+            test_names = load_test_names(test_filename)
+            #print("\nLes données pour tester vos modèles sont:")
+            #for org, name_list in test_names.items():
+            #    print("\t{} : {}".format(org, name_list))
+            evaluation = evaluate_classifier(test_filename, model, n=ngram_length)
+            print("\nAccuracy pour {} / {}-gram = {}".format(model, ngram_length, evaluation))
