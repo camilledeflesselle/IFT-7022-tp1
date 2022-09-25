@@ -10,6 +10,7 @@ proverbs_fn = "./data/proverbes.txt"
 test1_fn = "./data/test_proverbes.txt"
 BOS = '<BOS>'
 EOS = '<EOS>'
+models = dict()
 
 def load_proverbs(filename):
     with open(filename, 'r', encoding='utf-8') as f:
@@ -69,13 +70,11 @@ def train_models(filename):
         pour conserver les modèles de langue N-grammes après leur construction. 
         Merci de ne pas modifier les signatures (noms de fonctions et arguments) déjà présentes dans le fichier.
     """
-    models = dict()
     model_init = ModelNgram(proverbs)
     vocabulary = model_init.build_vocabulary()
     # différents modèles
     for n in range(1, 4):  
-        models[n] = model_init.get_model(n, vocabulary)   
-    return models
+        models[n] = model_init.get_model(n, vocabulary) 
 
 def n_gram_proverb_test_with_option(tested_proverb, n):
     tokens = word_tokenize(tested_proverb.lower())
@@ -84,7 +83,7 @@ def n_gram_proverb_test_with_option(tested_proverb, n):
     return n_gram_tested
 
 
-def cloze_test(incomplete_proverb, choices, models, n=3, criteria="perplexity"):
+def cloze_test(incomplete_proverb, choices, n=3, criteria="perplexity"):
     """ Fonction qui complète un texte à trous (des mots masqués) en ajoutant le bon mot.
         En anglais, on nomme ce type de tâche un "cloze test".
 
