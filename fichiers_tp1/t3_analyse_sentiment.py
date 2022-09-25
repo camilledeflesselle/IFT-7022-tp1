@@ -5,6 +5,8 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.model_selection import cross_val_score
+from nltk.stem import WordNetLemmatizer
+from nltk import word_tokenize
 
 reviews_dataset = {
     'train_pos_fn' : "./data/senti_train_positive.txt",
@@ -42,6 +44,30 @@ def evaluation(classifier, X, y_true):
     confusion_mat = confusion_matrix(y_true, y_pred)
     return accuracy, confusion_mat
     
+def lemmatization(X):
+    lemmatizer = WordNetLemmatizer()
+    X_lemmatized = []
+    for review in X:
+        review_lemmatized = []
+        tokens = word_tokenize(review)
+        for token in tokens:
+            lemma = lemmatizer.lemmatize(token)
+            review_lemmatized.append(lemma)
+        X_lemmatized.append(' '.join(review_lemmatized))
+    return X_lemmatized
+
+def stemming(X):
+    lemmatizer = WordNetLemmatizer()
+    X_stemm = []
+    for review in X:
+        review_stemm = []
+        tokens = word_tokenize(review)
+        for token in tokens:
+            stemm = lemmatizer.lemmatize(token)
+            review_stemm.append(stemm)
+        X_stemm.append(' '.join(review_stemm))
+    return X_stemm
+
 def train_and_test_classifier(dataset, model='NB', normalization='words'):
     """
     :param dataset: un dictionnaire contenant le nom des 4 fichiers utilisées pour entraîner et tester les classificateurs. Voir variable reviews_dataset.
@@ -56,17 +82,21 @@ def train_and_test_classifier(dataset, model='NB', normalization='words'):
                  - la matrice de confusion calculée par scikit-learn sur les données de test
     """
 
-    # Votre code...
-    # Partionnement du corpus en données d'entraînement (train) et de test.
-    # X désigne les textes à classifier et y les étiquettes associés à ces textes. 
-    # Dans cet exemple, on garde 20% des questions pour les tests. 
-
+    # Récupération des données entraînement et tests, ainsi que les classes associées (pos ou neg)
     X_train, X_test, y_train, y_test = train_test_from_files(dataset)
+
+    if normalization == 'lemma':
+        X_train = lemmatization(X_train)
+        X_test = lemmatization(X_test)
+        
+    if normalization == 'stem':
+        X_train = stemming(X_train)
+        X_test = stemming(X_test)
 
     # Le vectorizer permet de convertir les textes en sac de mots (vecteurs de compte)
     vectorizer = CountVectorizer(lowercase=True)
     vectorizer.fit(X_train)
-    print("\nNumbre d'attributs de classification : ", len(vectorizer.get_feature_names()))
+    #print("\Nombre d'attributs de classification : ", len(vectorizer.get_feature_names()))
 
     X_train_vectorized = vectorizer.transform(X_train)
     X_test_vectorized = vectorizer.transform(X_test)
@@ -76,11 +106,11 @@ def train_and_test_classifier(dataset, model='NB', normalization='words'):
         # Multinomial = possiblement plusieurs classes
         classifier = MultinomialNB()
         classifier.fit(X_train_vectorized, y_train)
-        print("Type de classificateur : ", classifier)
-        
-        class_probs = list(zip(classifier.classes_, classifier.class_log_prior_))
-        for x, prob in class_probs:
-            print("logprob({}) = {}".format(x, round(prob,2)))
+
+    if model == 'LR':
+        # On construit un classificateur Regression logistique sur les données d'entraînement
+        classifier = MultinomialNB()
+        classifier.fit(X_train_vectorized, y_train)
     
     accuracy_train, _ = evaluation(classifier, X_train_vectorized, y_train)
     accuracy_test, confusion_matrix = evaluation(classifier, X_test_vectorized, y_test)
@@ -104,7 +134,7 @@ if __name__ == '__main__':
         print("\t{} : {}".format(split, len(partitions[split])))
 
     # Entraînement et évaluation des modèles
-    results = train_and_test_classifier(reviews_dataset, model='NB', normalization='words')
+    results = train_and_test_classifier(reviews_dataset, model='NB', normalization='lemma')
     print("Accuracy - entraînement: ", results['accuracy_train'])
     print("Accuracy - test: ", results['accuracy_test'])
     print("Matrice de confusion: ", results['confusion_matrix'])
