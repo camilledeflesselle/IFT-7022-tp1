@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import re
-import operator
 
 ingredients_fn = "./data/ingredients.txt"
 solutions_fn =  "./data/ingredients_solutions.txt"
@@ -82,7 +81,7 @@ if __name__ == '__main__':
         result = "\t{}\t QUANTITE: {}\t INGREDIENT: {}".format(all_items[i], quantity, ingredient)
         if quantity != quantities[i] :
             errors_quantities.append(result)
-            #print(quantity, "/", quantities[i])
+            print(quantity, "/", quantities[i])
         elif ingredient != ingredients[i] : 
             errors_ingredients.append(result)
             print(ingredient, "/", ingredients[i])

@@ -86,8 +86,7 @@ def n_gram_proverb_test(tested_proverb, n):
     :return n_gram_tested: séquence de n-grammes associée au proverbe testé
     """
     tokens = word_tokenize(tested_proverb.lower())
-    if n > 1 : n_gram_tested = list(ngrams(tokens, n=n))
-    else : n_gram_tested = tokens
+    n_gram_tested = list(ngrams(tokens, n=n))
     return n_gram_tested
 
 
@@ -109,8 +108,11 @@ def cloze_test(incomplete_proverb, choices, n=3, criteria="perplexity"):
         tested_proverb = re.sub("\*{3}", option, incomplete_proverb)
         n_gram_tested = n_gram_proverb_test(tested_proverb, n)
         d_perplexity[tested_proverb] = model.perplexity(n_gram_tested)
-        n_gram_context = re.sub("\*{3}", "", incomplete_proverb).split()
-        d_logscore[tested_proverb] = model.logscore(option, n_gram_context)
+        logscore = 0
+        for n_gram in n_gram_tested :
+            logscore += model.logscore(n_gram[-1], n_gram[0:(len(n_gram) - 1)])
+        d_logscore[tested_proverb] = logscore
+
     if criteria == "perplexity":
         result, score = min(d_perplexity.items(), key=operator.itemgetter(1))
     else:
@@ -123,7 +125,7 @@ if __name__ == '__main__':
     proverbs = load_proverbs(proverbs_fn)
     print("\nNombre de proverbes pour entraîner les modèles : ", len(proverbs))
     # Entraînement des modèles
-    models = train_models(proverbs_fn)
+    train_models(proverbs_fn)
 
     test_proverbs = load_tests(test1_fn)
     print("\nNombre de tests du fichier {}: {}\n".format(test1_fn, len(test_proverbs)))
@@ -132,14 +134,14 @@ if __name__ == '__main__':
         for criteria in ["perplexity", "logprob"]:
             nb_error = 0
             i = 0
-            print("\n\n Résultats avec n = {} et le critère '{}' : ".format(n, criteria))
             for partial_proverb, options in test_proverbs.items():
-                solution, valeur = cloze_test(partial_proverb, options, models, n, criteria=criteria)
+                solution, valeur = cloze_test(partial_proverb, options, n, criteria=criteria)
                 if solution not in proverbs : 
                     nb_error+=1
-                    if nb_error < 5:
+                    if nb_error < 0:
                         print("\n\tProverbe incomplet: {} , Options: {}".format(partial_proverb, options))
                         print("\tSolution = {} , Valeur = {}".format(solution, valeur))
                 i+=1
-            print("\n Nombre d'erreurs avec n = {} et le critère '{}' : {}".format(n, criteria, nb_error))
+            print("\n Exactitude avec n = {} et le critère '{}' : {}".format(n, criteria, (len(test_proverbs) - nb_error)/len(test_proverbs)))
+            #print("\n Taux d'erreurs avec n = {} et le critère '{}' : {}".format(n, criteria, nb_error/len(test_proverbs)))
    
