@@ -76,7 +76,7 @@ def train_models(filename):
     model_init = ModelNgram(proverbs)
     vocabulary = model_init.build_vocabulary()
     # différents modèles
-    for n in range(1, 4):  
+    for n in range(1, 5):  
         models[n] = model_init.get_model(n, vocabulary) 
 
 def n_gram_proverb_test(tested_proverb, n):
@@ -107,11 +107,14 @@ def cloze_test(incomplete_proverb, choices, n=3, criteria="perplexity"):
     for option in choices :
         tested_proverb = re.sub("\*{3}", option, incomplete_proverb)
         n_gram_tested = n_gram_proverb_test(tested_proverb, n)
-        d_perplexity[tested_proverb] = model.perplexity(n_gram_tested)
-        logscore = 0
-        for n_gram in n_gram_tested :
-            logscore += model.logscore(n_gram[-1], n_gram[0:(len(n_gram) - 1)])
-        d_logscore[tested_proverb] = logscore
+        if criteria == "perplexity": 
+            d_perplexity[tested_proverb] = model.perplexity(n_gram_tested)
+        else :
+            logscore = 0
+            for n_gram in n_gram_tested :
+                # nous faisons la somme des logscore de chacun des n-grammes
+                logscore += model.logscore(n_gram[-1], n_gram[0:(len(n_gram) - 1)])
+            d_logscore[tested_proverb] = logscore
 
     if criteria == "perplexity":
         result, score = min(d_perplexity.items(), key=operator.itemgetter(1))
@@ -121,27 +124,24 @@ def cloze_test(incomplete_proverb, choices, n=3, criteria="perplexity"):
 
 
 if __name__ == '__main__':
-    # Vous pouvez modifier cette section comme bon vous semble
+    # Proverbes pour l'entraînement
     proverbs = load_proverbs(proverbs_fn)
     print("\nNombre de proverbes pour entraîner les modèles : ", len(proverbs))
     # Entraînement des modèles
     train_models(proverbs_fn)
 
+    # Proverbes pour les tests
     test_proverbs = load_tests(test1_fn)
-    print("\nNombre de tests du fichier {}: {}\n".format(test1_fn, len(test_proverbs)))
-    print("Les résultats des tests sont:")
-    for n in range(1, 4):
-        for criteria in ["perplexity", "logprob"]:
-            nb_error = 0
-            i = 0
+    
+    for n in range(1, 5): # Taille des n-grammes
+        for criteria in ["perplexity", "logprob"]: # critère utilisé
+            nb_error = 0 # compte du nombre d'erreurs, en fonction du modèle et du critère
             for partial_proverb, options in test_proverbs.items():
                 solution, valeur = cloze_test(partial_proverb, options, n, criteria=criteria)
                 if solution not in proverbs : 
                     nb_error+=1
-                    if nb_error < 0:
+                    if nb_error < 5: # affichage des cinq premières erreurs
                         print("\n\tProverbe incomplet: {} , Options: {}".format(partial_proverb, options))
                         print("\tSolution = {} , Valeur = {}".format(solution, valeur))
-                i+=1
             print("\n Exactitude avec n = {} et le critère '{}' : {}".format(n, criteria, (len(test_proverbs) - nb_error)/len(test_proverbs)))
-            #print("\n Taux d'erreurs avec n = {} et le critère '{}' : {}".format(n, criteria, nb_error/len(test_proverbs)))
-   
+           

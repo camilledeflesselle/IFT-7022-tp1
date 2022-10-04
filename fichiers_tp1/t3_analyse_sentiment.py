@@ -9,6 +9,7 @@ from sklearn.model_selection import cross_val_score
 from nltk.stem.snowball import PorterStemmer
 from nltk import word_tokenize
 import spacy
+from time import perf_counter
 
 reviews_dataset = {
     'train_pos_fn' : "./data/senti_train_positive.txt",
@@ -143,7 +144,7 @@ def train_and_test_classifier(dataset, model='NB', normalization='words'):
         # On construit un classificateur Regression logistique sur les données d'entraînement
         classifier = LogisticRegression(max_iter=1000)
         classifier.fit(X_train_vectorized, y_train)
-    
+
     accuracy_train = evaluation(classifier, X_train_vectorized, y_train, cross_val = True, i_val = 10)
     accuracy_test, confusion_matrix = evaluation(classifier, X_test_vectorized, y_test)
 
@@ -156,18 +157,16 @@ def train_and_test_classifier(dataset, model='NB', normalization='words'):
 
 
 if __name__ == '__main__':
-    # Vous pouvez modifier cette section comme vous le souhaitez.
-    # Contenu des fichiers de données
-    splits = ['train_pos_fn', 'train_neg_fn', 'test_pos_fn', 'test_neg_fn']
-    print("Taille des partitions du jeu de données")
-    partitions = dict()
-    for split in splits:
-        partitions[split] = load_reviews(reviews_dataset[split])
-        print("\t{} : {}".format(split, len(partitions[split])))
-
+    #model = 'LR'
+    #normalization = 'words'
     # Entraînement et évaluation des modèles
-    results = train_and_test_classifier(reviews_dataset, model='LR', normalization='words')
+    tps1 = perf_counter()
+    results = train_and_test_classifier(reviews_dataset, model=model, normalization=normalization)
+    tps2 = perf_counter()
+    print("Résultats avec la méthode {} / {} :".format(model, normalization))
     print("Accuracy - entraînement: ", results['accuracy_train'])
     print("Accuracy - test: ", results['accuracy_test'])
     print("Matrice de confusion: ", results['confusion_matrix'])
+    print("\nTemps d'exécution de train_and_test_classifier :", tps2-tps1)
+
 
