@@ -10,6 +10,7 @@ from nltk.stem.snowball import PorterStemmer
 from nltk import word_tokenize
 import spacy
 from time import perf_counter
+import pandas as pd
 
 reviews_dataset = {
     'train_pos_fn' : "./data/senti_train_positive.txt",
@@ -68,7 +69,7 @@ def evaluation(classifier, X, y_true, cross_val = False, i_val = 10):
         confusion_mat = confusion_matrix(y_true, y_pred)
         return accuracy, confusion_mat
     
-def lemmatization(X):
+def lemmatization(X, eliminate_words = False, keeped_pos = ['ADJ']):
     """
     :param X: une liste de reviews
     :return: la liste de reviews normalisée avec la lemmatisation (spacy)
@@ -79,7 +80,11 @@ def lemmatization(X):
         review_lemmatized = []
         doc = analyzer_en(review)
         for token in doc:
-            review_lemmatized.append(token.lemma_)
+            if eliminate_words :
+                if token.pos_ in keeped_pos:
+                    review_lemmatized.append(token.lemma_)
+            else :
+                review_lemmatized.append(token.lemma_)
         X_lemmatized.append(' '.join(review_lemmatized))
     return X_lemmatized
 
@@ -127,7 +132,10 @@ def train_and_test_classifier(dataset, model='NB', normalization='words'):
         X_test = stemming(X_test, porter_stemmer)
 
     # Le vectorizer permet de convertir les textes en sac de mots (vecteurs de compte)
-    vectorizer = CountVectorizer(lowercase=True)
+    # le paramètre lowercase permet de convertir tous les caractères en minuscule avant la tokenisation
+    # le paramètre stop_words = 'english' permet d'éliminer les stopwords dans la liste de tokens 
+    # par exemple the, and, of, ... qui ne sont pas de bons indices
+    vectorizer = CountVectorizer(analyzer = 'word', lowercase=True, stop_words = 'english')
     vectorizer.fit(X_train)
     #print("\Nombre d'attributs de classification : ", len(vectorizer.get_feature_names()))
 
@@ -142,11 +150,16 @@ def train_and_test_classifier(dataset, model='NB', normalization='words'):
 
     if model == 'LR':
         # On construit un classificateur Regression logistique sur les données d'entraînement
-        classifier = LogisticRegression(max_iter=1000)
+        classifier = LogisticRegression()
         classifier.fit(X_train_vectorized, y_train)
 
     accuracy_train = evaluation(classifier, X_train_vectorized, y_train, cross_val = True, i_val = 10)
     accuracy_test, confusion_matrix = evaluation(classifier, X_test_vectorized, y_test)
+
+    important_words_by_class = get_words_with_highest_conditional_logprobabilities_by_class(vectorizer, classifier)
+
+    print(important_words_by_class[POSITIVE])
+    print(important_words_by_class[NEGATIVE])
 
     # Les résultats à retourner 
     results = dict()
@@ -155,10 +168,20 @@ def train_and_test_classifier(dataset, model='NB', normalization='words'):
     results['confusion_matrix'] = confusion_matrix  # la matrice de confusion obtenue de Scikit-learn
     return results
 
+def get_words_with_highest_conditional_logprobabilities_by_class(vectorizer, classifier, classes = [POSITIVE, NEGATIVE]):
+    df_dict = dict()
+    df = pd.DataFrame(vectorizer.get_feature_names(), columns =['Mots']) 
+    for i in range(len(classifier.classes_)):
+        df[classifier.classes_[i]] = list(classifier.feature_log_prob_[i])
+    for c in classes :
+        df_dict[c] = list(df.sort_values(by=[c], ascending=False)['Mots'][0:30])
+    return df_dict
+
 
 if __name__ == '__main__':
-    #model = 'LR'
+    #model = 'NB'
     #normalization = 'words'
+    
     # Entraînement et évaluation des modèles
     tps1 = perf_counter()
     results = train_and_test_classifier(reviews_dataset, model=model, normalization=normalization)
@@ -168,5 +191,7 @@ if __name__ == '__main__':
     print("Accuracy - test: ", results['accuracy_test'])
     print("Matrice de confusion: ", results['confusion_matrix'])
     print("\nTemps d'exécution de train_and_test_classifier :", tps2-tps1)
+
+    # Mots les plus importants
 
 
