@@ -10,7 +10,11 @@ import json
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
+from sklearn.model_selection import cross_val_score
 from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
 
 datafiles = "./data/names/*.txt"  # les fichiers pour construire vos modèles
 test_filename = './data/test_names.txt'  # le fichier contenant les données de test pour évaluer vos modèles
@@ -20,6 +24,7 @@ all_origins = []  # la liste des 18 langues d'origines de noms
 models = dict()
 X_train, y_train = list(), list()
 Vectorizers = dict()
+N_MAX = 3
 
 # Fonctions utilitaires pour lire les données d'entraînement et de test - NE PAS MODIFIER
 
@@ -96,7 +101,7 @@ def create_vectorizer(X_train, n=2):
         n = int(n)
         character_ngrams_vectorizer = CountVectorizer(analyzer='char', ngram_range=(n, n))  
     else : 
-        character_ngrams_vectorizer = CountVectorizer(analyzer='char', ngram_range=(1, 4))     
+        character_ngrams_vectorizer = CountVectorizer(analyzer='char', ngram_range=(1, N_MAX+1))     
     character_ngrams_vectorizer.fit(X_train) 
     Vectorizers[str(n)+"-gram"] = character_ngrams_vectorizer
 
@@ -111,7 +116,7 @@ def train_classifiers():
     # données d'entraînement et classes associées
     X_train, y_train = data_and_labels(names_by_origin)
     
-    for n in [str(i) for i in range(1,4)] + ['multi']:
+    for n in [str(i) for i in range(1,N_MAX+1)] + ['multi']:
         classifiers = dict()
         create_vectorizer(X_train, n)
         X_train_vectorized = Vectorizers[str(n)+"-gram"].transform(X_train)  
@@ -155,18 +160,36 @@ def evaluate_classifier(test_fn, type, n=3):
     test_accuracy = accuracy_score(y_true, y_pred)
     return test_accuracy
 
+def plot_confusion_matrix(classifier, test_fn, type, n=3):
+    test_data = load_test_names(test_fn)
+    X_test, y_true = data_and_labels(test_data)
+    y_pred = [origin(name, type, n) for name in X_test]
+    fig = plt.figure(figsize = (10, 7))
+    ax = fig.add_subplot(1, 1, 1)
+    cm = confusion_matrix(y_true, y_pred)
+    cm = ConfusionMatrixDisplay(cm, display_labels = classifier.classes_)
+    cm.plot(values_format = 'd', cmap = 'Blues', ax = ax)
+    fig.delaxes(fig.axes[1]) #delete colorbar
+    fig.tight_layout()
+    plt.xticks(rotation = 90)
+    plt.xlabel('Classe prédite')
+    plt.ylabel('Classe réelle')
+    plt.savefig("../results_t4/confusion_matrix_{}_{}.png".format(type, n), dpi=300)
+    
 
 if __name__ == '__main__':
     load_names()
     print("Les {} langues d'origine sont: \n{}".format(len(all_origins), all_origins))
     chinese_names = names_by_origin["Chinese"]
     print("\nQuelques noms chinois : \n", chinese_names[:20])
+    for origin_language, names in names_by_origin.items():
+        print(" Nombre de noms d'origine {} : {}".format(origin_language, len(names)))
 
     train_classifiers()
 
     for model in ['NB', 'LR']:
 
-        for ngram_length in [str(i) for i in range(1,4)]  + ['multi']:
+        for ngram_length in [str(i) for i in range(1,N_MAX+1)]  + ['multi']:
             if ngram_length != 'multi' : ngram_length = int(ngram_length)
             classifier = get_classifier(model, n=ngram_length)
             #print("\nType de classificateur: ", classifier)
@@ -179,5 +202,10 @@ if __name__ == '__main__':
             #print("\nLes données pour tester vos modèles sont:")
             #for org, name_list in test_names.items():
             #    print("\t{} : {}".format(org, name_list))
+
+            #accuracy_train = cross_val_score(classifier, X_train, y_train, cv=5).mean()
+            #print("\nAccuracy en entraînement pour {} / {}-gram = {}".format(model, ngram_length, accuracy_train))
+
             evaluation = evaluate_classifier(test_filename, model, n=ngram_length)
-            print("\nAccuracy pour {} / {}-gram = {}".format(model, ngram_length, evaluation))
+            print("\nAccuracy en test pour {} / {}-gram = {}".format(model, ngram_length, evaluation))
+            plot_confusion_matrix(classifier, test_filename, model, n=ngram_length)

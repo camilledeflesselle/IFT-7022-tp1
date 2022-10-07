@@ -184,16 +184,16 @@ def get_words_with_highest_conditional_logprobabilities_by_class_NB(vectorizer, 
     df2 = df
     df2= df2.sort_values(by=NEGATIVE, ascending=False)[0:300]
 
-    df_dict[POSITIVE] = round(df1.sort_values(by=label, ascending=False)[0:10], 2)
-    df_dict[NEGATIVE] = round(df2.sort_values(by=label, ascending=True)[0:10], 2)
+    df_dict[POSITIVE] = list(df1.sort_values(by=label, ascending=False)[0:10]['Mots'])
+    df_dict[NEGATIVE] = list(df2.sort_values(by=label, ascending=True)[0:10]['Mots'])
     return df_dict
 
 def get_words_with_highest_conditional_logprobabilities_by_class_LR(vectorizer, classifier):
     df_dict = dict()
     df = pd.DataFrame(vectorizer.get_feature_names(), columns =['Mots']) 
     df[classifier.classes_[1]] = list(classifier.coef_[0])
-    df_dict[POSITIVE] = round(df.sort_values(by=POSITIVE, ascending=False)[0:10], 2)
-    df_dict[NEGATIVE] = round(df.sort_values(by=POSITIVE, ascending=True)[0:10], 2)
+    df_dict[POSITIVE] = list(df.sort_values(by=POSITIVE, ascending=False)[0:10]['Mots'])
+    df_dict[NEGATIVE] = list(df.sort_values(by=POSITIVE, ascending=True)[0:10]['Mots'])
     return df_dict
 
 
