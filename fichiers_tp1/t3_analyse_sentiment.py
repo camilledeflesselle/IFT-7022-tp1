@@ -152,7 +152,7 @@ def train_and_test_classifier(dataset, model='NB', normalization='words'):
 
     if model == 'LR':
         # On construit un classificateur Regression logistique sur les données d'entraînement
-        classifier = LogisticRegression(penalty = 'l1', solver = 'liblinear')
+        classifier = LogisticRegression(C=0.1, penalty = 'l2', solver = 'liblinear')
         classifier.fit(X_train_vectorized, y_train)
         important_words_by_class = get_words_with_highest_conditional_logprobabilities_by_class_LR(vectorizer, classifier)
 
