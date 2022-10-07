@@ -158,11 +158,12 @@ def train_and_test_classifier(dataset, model='NB', normalization='words'):
 
     accuracy_train = evaluation(classifier, X_train_vectorized, y_train, cross_val = True, i_val = 10)
     accuracy_test, confusion_matrix = evaluation(classifier, X_test_vectorized, y_test)
-
-    print("Mots les plus importants pour la classe", POSITIVE)
-    print(important_words_by_class[POSITIVE])
-    print("Mots les plus importants pour la classe", NEGATIVE)
-    print(important_words_by_class[NEGATIVE])
+    
+    # --> à décommenter si vous souhaitez connaître les mots les plus importants
+    #print("Mots les plus importants pour la classe", POSITIVE)
+    #print(important_words_by_class[POSITIVE])
+    #print("Mots les plus importants pour la classe", NEGATIVE)
+    #print(important_words_by_class[NEGATIVE])
 
     # Les résultats à retourner 
     results = dict()
@@ -172,6 +173,9 @@ def train_and_test_classifier(dataset, model='NB', normalization='words'):
     return results
 
 def get_words_with_highest_conditional_logprobabilities_by_class_NB(vectorizer, classifier):
+    # Permet d'afficher les 10 n-grammes les plus importants pour un modèle de type NB
+    #  - vectorizer : un objet CountVectorizer
+    #  - classifier : un classifieur de type 'NB'
     df_dict = dict()
     df = pd.DataFrame(vectorizer.get_feature_names(), columns =['Mots']) 
     for i in range(len(classifier.classes_)):
@@ -189,6 +193,9 @@ def get_words_with_highest_conditional_logprobabilities_by_class_NB(vectorizer, 
     return df_dict
 
 def get_words_with_highest_conditional_logprobabilities_by_class_LR(vectorizer, classifier):
+    # Permet d'afficher les 10 n-grammes les plus importants pour un modèle de type LR
+    #  - vectorizer : un objet CountVectorizer
+    #  - classifier : un classifieur de type 'LR'
     df_dict = dict()
     df = pd.DataFrame(vectorizer.get_feature_names(), columns =['Mots']) 
     df[classifier.classes_[1]] = list(classifier.coef_[0])
@@ -198,8 +205,9 @@ def get_words_with_highest_conditional_logprobabilities_by_class_LR(vectorizer, 
 
 
 if __name__ == '__main__':
-    #model = 'NB'
-    #normalization = 'words'
+    # à changer en fonction de la configuration testée
+    model = 'NB'
+    normalization = 'words'
     
     # Entraînement et évaluation des modèles
     tps1 = perf_counter()
@@ -210,7 +218,5 @@ if __name__ == '__main__':
     print("Accuracy - test: ", results['accuracy_test'])
     print("Matrice de confusion: ", results['confusion_matrix'])
     print("\nTemps d'exécution de train_and_test_classifier :", tps2-tps1)
-
-    # Mots les plus importants
 
 

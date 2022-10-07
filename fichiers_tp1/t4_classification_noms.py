@@ -156,6 +156,11 @@ def origin(name, type, n=3):
     
     
 def evaluate_classifier(test_fn, type, n=3):
+    # Evalue le classifieur 
+    #   - test_fn = le nom du fichier où se situent les données de test
+    #   - type = 'NB' pour naive bayes ou 'LR' pour régression logistique
+    #   - n désigne la longueur des N-grammes de caractères. Choix possible = 1, 2, 3, 'multi'
+    # 
     test_data = load_test_names(test_fn)
     X_test, y_true = data_and_labels(test_data)
     y_pred = [origin(name, type, n) for name in X_test]
@@ -164,6 +169,8 @@ def evaluate_classifier(test_fn, type, n=3):
 
 def evaluate_train(classifier, n):
     # Evaluation par validation croisée du modèle sur les données d'entraînement
+    # Retourne la moyenne des exactitudes sur 5 validations croisées
+    #
     X_train, y_train = data_and_labels(names_by_origin)
     X_train_vectorized = Vectorizers[str(n)+"-gram"].transform(X_train)
     accuracy_train = cross_val_score(classifier, X_train_vectorized, y_train, cv=5).mean()
@@ -171,6 +178,12 @@ def evaluate_train(classifier, n):
             
 
 def plot_confusion_matrix(classifier, test_fn, type, n=3):
+    # Affiche la matrice de confusions sur les données de test
+    #   - classifier = le classifieur utilisé
+    #   - test_fn = le nom du fichier où se situent les données de test
+    #   - type = 'NB' pour naive bayes ou 'LR' pour régression logistique
+    #   - n désigne la longueur des N-grammes de caractères. Choix possible = 1, 2, 3, 'multi'
+    # 
     font = {'size'   : 15}
     plt.rc('font', **font)
     test_data = load_test_names(test_fn)
@@ -189,6 +202,9 @@ def plot_confusion_matrix(classifier, test_fn, type, n=3):
     
 
 def get_words_with_highest_conditional_logprobabilities_by_class_NB(vectorizer, classifier):
+    # Permet d'afficher les 10 n-grammes les plus importants pour un modèle de type NB
+    #  - vectorizer : un objet CountVectorizer
+    #  - classifier : un classifieur de type 'NB'
     df_dict = dict()
     df = pd.DataFrame(vectorizer.get_feature_names(), columns =['N-grammes']) 
     for i in range(len(classifier.classes_)):
@@ -198,6 +214,9 @@ def get_words_with_highest_conditional_logprobabilities_by_class_NB(vectorizer, 
     return df_dict
 
 def get_words_with_highest_conditional_logprobabilities_by_class_LR(vectorizer, classifier):
+    # Permet d'afficher les 10 n-grammes les plus importants pour un modèle de type LR
+    #  - vectorizer : un objet CountVectorizer
+    #  - classifier : un classifieur de type 'LR'
     df_dict = dict()
     df = pd.DataFrame(vectorizer.get_feature_names(), columns =['N-grammes']) 
 
@@ -222,7 +241,7 @@ if __name__ == '__main__':
     # Entraînement de chacun des modèles
     train_classifiers()
 
-    # Evaluation de chacun des modèles
+    # Evaluation de chacun des modèles, en entraînement et en test
     for model in ['NB', 'LR']:
         for ngram_length in [str(i) for i in range(1,N_MAX+1)]  + ['multi']:
             if ngram_length != 'multi' : ngram_length = int(ngram_length)
@@ -239,5 +258,6 @@ if __name__ == '__main__':
             
             # Affichage de l'importance des n-grammes pour l'un des modèles
             if model == 'LR' and ngram_length == 'multi' :
-                df_dict = get_words_with_highest_conditional_logprobabilities_by_class_LR(Vectorizers[str(n)+"-gram"], classifier)
+                df_dict = get_words_with_highest_conditional_logprobabilities_by_class_LR(Vectorizers[str(ngram_length)+"-gram"], classifier)
+                print("N-grammes les plus importants")
                 print(df_dict)
