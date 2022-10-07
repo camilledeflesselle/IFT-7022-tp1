@@ -7,6 +7,7 @@ from tkinter import WORD
 import unicodedata
 import json
 
+import re
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
@@ -86,6 +87,7 @@ def data_and_labels(names_with_origin):
     X = list()  # data
     y = list()  # labels
     for origin, names in names_with_origin.items():
+        names = [re.sub(r'^\s|\s$', '', name) for name in names] # supprime espaces en début et fin de noms
         X = X + names
         y = y + [origin]*len(names)
     return X, y
