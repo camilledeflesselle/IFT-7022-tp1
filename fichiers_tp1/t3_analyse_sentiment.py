@@ -19,8 +19,8 @@ reviews_dataset = {
     'test_neg_fn' : "./data/senti_test_negative.txt"
 }
 
-POSITIVE = 'pos'
-NEGATIVE = 'neg'
+POSITIVE = 1
+NEGATIVE = 0
 
 def load_reviews(filename):
     with open(filename, 'r') as fp:
@@ -135,7 +135,7 @@ def train_and_test_classifier(dataset, model='NB', normalization='words'):
     # le paramètre lowercase permet de convertir tous les caractères en minuscule avant la tokenisation
     # le paramètre stop_words = 'english' permet d'éliminer les stopwords dans la liste de tokens 
     # par exemple the, and, of, ... qui ne sont pas de bons indices
-    vectorizer = CountVectorizer(analyzer = 'word', lowercase=True, stop_words = 'english')
+    vectorizer = CountVectorizer(analyzer = 'word', lowercase=True, stop_words = 'english', max_df = 0.7)
     vectorizer.fit(X_train)
     #print("\Nombre d'attributs de classification : ", len(vectorizer.get_feature_names()))
 
@@ -146,19 +146,21 @@ def train_and_test_classifier(dataset, model='NB', normalization='words'):
         # On construit un classificateur Naive Bayes sur les données d'entraînement
         # Multinomial = possiblement plusieurs classes
         classifier = MultinomialNB()
-        classifier.fit(X_train_vectorized, y_train)
 
     if model == 'LR':
         # On construit un classificateur Regression logistique sur les données d'entraînement
         classifier = LogisticRegression()
-        classifier.fit(X_train_vectorized, y_train)
+    
+    classifier.fit(X_train_vectorized, y_train)
 
     accuracy_train = evaluation(classifier, X_train_vectorized, y_train, cross_val = True, i_val = 10)
     accuracy_test, confusion_matrix = evaluation(classifier, X_test_vectorized, y_test)
 
     important_words_by_class = get_words_with_highest_conditional_logprobabilities_by_class(vectorizer, classifier)
 
+    print("Mots les plus importants pour la classe", POSITIVE)
     print(important_words_by_class[POSITIVE])
+    print("Mots les plus importants pour la classe", NEGATIVE)
     print(important_words_by_class[NEGATIVE])
 
     # Les résultats à retourner 
@@ -173,8 +175,16 @@ def get_words_with_highest_conditional_logprobabilities_by_class(vectorizer, cla
     df = pd.DataFrame(vectorizer.get_feature_names(), columns =['Mots']) 
     for i in range(len(classifier.classes_)):
         df[classifier.classes_[i]] = list(classifier.feature_log_prob_[i])
-    for c in classes :
-        df_dict[c] = list(df.sort_values(by=[c], ascending=False)['Mots'][0:30])
+    label = "{} - {}".format(POSITIVE, NEGATIVE)
+    df1 = df
+    df1[label] = df[POSITIVE] - df[NEGATIVE]
+    df1= df1.sort_values(by=POSITIVE, ascending=False)[0:200]
+
+    df2 = df
+    df2= df2.sort_values(by=NEGATIVE, ascending=False)[0:300]
+
+    df_dict[POSITIVE] = round(df1.sort_values(by=label, ascending=False)[0:10], 2)
+    df_dict[NEGATIVE] = round(df2.sort_values(by=label, ascending=True)[0:10], 2)
     return df_dict
 
 
