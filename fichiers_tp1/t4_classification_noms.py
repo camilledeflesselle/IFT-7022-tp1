@@ -15,6 +15,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
+import pandas as pd
 
 datafiles = "./data/names/*.txt"  # les fichiers pour construire vos modèles
 test_filename = './data/test_names.txt'  # le fichier contenant les données de test pour évaluer vos modèles
@@ -22,7 +23,6 @@ test_filename = './data/test_names.txt'  # le fichier contenant les données de 
 names_by_origin = {}  # un dictionnaire qui contient une liste de noms pour chaque langue d'origine
 all_origins = []  # la liste des 18 langues d'origines de noms 
 models = dict()
-X_train, y_train = list(), list()
 Vectorizers = dict()
 N_MAX = 3
 
@@ -101,7 +101,7 @@ def create_vectorizer(X_train, n=2):
         n = int(n)
         character_ngrams_vectorizer = CountVectorizer(analyzer='char', ngram_range=(n, n))  
     else : 
-        character_ngrams_vectorizer = CountVectorizer(analyzer='char', ngram_range=(1, N_MAX+1))     
+        character_ngrams_vectorizer = CountVectorizer(analyzer='char', ngram_range=(1, N_MAX))     
     character_ngrams_vectorizer.fit(X_train) 
     Vectorizers[str(n)+"-gram"] = character_ngrams_vectorizer
 
@@ -160,52 +160,82 @@ def evaluate_classifier(test_fn, type, n=3):
     test_accuracy = accuracy_score(y_true, y_pred)
     return test_accuracy
 
+def evaluate_train(classifier, n):
+    # Evaluation par validation croisée du modèle sur les données d'entraînement
+    X_train, y_train = data_and_labels(names_by_origin)
+    X_train_vectorized = Vectorizers[str(n)+"-gram"].transform(X_train)
+    accuracy_train = cross_val_score(classifier, X_train_vectorized, y_train, cv=5).mean()
+    return accuracy_train
+            
+
 def plot_confusion_matrix(classifier, test_fn, type, n=3):
+    font = {'size'   : 15}
+    plt.rc('font', **font)
     test_data = load_test_names(test_fn)
     X_test, y_true = data_and_labels(test_data)
     y_pred = [origin(name, type, n) for name in X_test]
-    fig = plt.figure(figsize = (10, 7))
+    fig = plt.figure(figsize = (15, 15))
     ax = fig.add_subplot(1, 1, 1)
     cm = confusion_matrix(y_true, y_pred)
     cm = ConfusionMatrixDisplay(cm, display_labels = classifier.classes_)
     cm.plot(values_format = 'd', cmap = 'Blues', ax = ax)
     fig.delaxes(fig.axes[1]) #delete colorbar
-    fig.tight_layout()
     plt.xticks(rotation = 90)
     plt.xlabel('Classe prédite')
     plt.ylabel('Classe réelle')
-    plt.savefig("../results_t4/confusion_matrix_{}_{}.png".format(type, n), dpi=300)
+    plt.savefig("../results_t4/confusion_matrix_{}_{}.png".format(type, n), bbox_inches = 'tight', dpi=500)
     
 
-if __name__ == '__main__':
-    load_names()
-    print("Les {} langues d'origine sont: \n{}".format(len(all_origins), all_origins))
-    chinese_names = names_by_origin["Chinese"]
-    print("\nQuelques noms chinois : \n", chinese_names[:20])
-    for origin_language, names in names_by_origin.items():
-        print(" Nombre de noms d'origine {} : {}".format(origin_language, len(names)))
+def get_words_with_highest_conditional_logprobabilities_by_class_NB(vectorizer, classifier):
+    df_dict = dict()
+    df = pd.DataFrame(vectorizer.get_feature_names(), columns =['N-grammes']) 
+    for i in range(len(classifier.classes_)):
+        c = classifier.classes_[i]
+        df[c] = list(classifier.feature_log_prob_[i])
+        df_dict[c] = df.sort_values(by=c, ascending=False)[0:10]
+    return df_dict
 
+def get_words_with_highest_conditional_logprobabilities_by_class_LR(vectorizer, classifier):
+    df_dict = dict()
+    df = pd.DataFrame(vectorizer.get_feature_names(), columns =['N-grammes']) 
+
+    for i in range(len(classifier.classes_)):
+        c = classifier.classes_[i]
+        df[c] = list(classifier.coef_[i])
+        df_dict[c] = list(df.sort_values(by=c, ascending=False)[0:10]['N-grammes'])
+    return df_dict
+
+if __name__ == '__main__':
+    # Chargement des données d'entraînement et de test
+    load_names()
+    test_names = load_test_names(test_filename)
+    total_names = 0
+
+    # Nombre de noms par classe des données d'entraînement
+    for origin_language, names in names_by_origin.items():
+        total_names +=  len(names)
+        print(" Nombre de noms d'origine {} : {} -> {}% des données".format(origin_language, len(names), round(len(names)/20074*100, 1)))
+    print("Total names", total_names)
+
+    # Entraînement de chacun des modèles
     train_classifiers()
 
+    # Evaluation de chacun des modèles
     for model in ['NB', 'LR']:
-
         for ngram_length in [str(i) for i in range(1,N_MAX+1)]  + ['multi']:
             if ngram_length != 'multi' : ngram_length = int(ngram_length)
             classifier = get_classifier(model, n=ngram_length)
-            #print("\nType de classificateur: ", classifier)
 
-            #some_name = "Lamontagne"
-            #some_origin = origin(some_name, model, n=ngram_length)
-            #print("\nLangue d'origine de {}: {}".format(some_name, some_origin))
-
-            test_names = load_test_names(test_filename)
-            #print("\nLes données pour tester vos modèles sont:")
-            #for org, name_list in test_names.items():
-            #    print("\t{} : {}".format(org, name_list))
-
-            #accuracy_train = cross_val_score(classifier, X_train, y_train, cv=5).mean()
-            #print("\nAccuracy en entraînement pour {} / {}-gram = {}".format(model, ngram_length, accuracy_train))
+            accuracy_train = evaluate_train(classifier, ngram_length)
+            print("\nAccuracy en entraînement pour {} / {}-gram = {}".format(model, ngram_length, accuracy_train))
 
             evaluation = evaluate_classifier(test_filename, model, n=ngram_length)
             print("\nAccuracy en test pour {} / {}-gram = {}".format(model, ngram_length, evaluation))
-            plot_confusion_matrix(classifier, test_filename, model, n=ngram_length)
+
+            # Affichage d'une matrice de confusions pour identifier les erreurs
+            # plot_confusion_matrix(classifier, test_filename, model, n=ngram_length)
+            
+            # Affichage de l'importance des n-grammes pour l'un des modèles
+            if model == 'LR' and ngram_length == 'multi' :
+                df_dict = get_words_with_highest_conditional_logprobabilities_by_class_LR(Vectorizers[str(n)+"-gram"], classifier)
+                print(df_dict)
