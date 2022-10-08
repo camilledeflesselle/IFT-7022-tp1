@@ -4,6 +4,25 @@
 - Lucas Chollet
 - Camille Deflesselle
 
+## Librairies utilisées à installer au préalable
+
+- *re*
+- *sklearn*
+- *matplotlib*
+- *pandas*
+- *spacy*
+- *time*
+- *operator*
+- *nltk*
+- *unicode_literals*
+- *glob*
+- *os*
+- *string*
+- *tkinter*
+- *unicodedata*
+- *json*
+
+
 ## Description des fichiers
 
 ### Fichier *t1_extraction_ingredients.py*
